@@ -7,111 +7,121 @@ import Bookshelf from './Bookshelf'
 import { Route } from 'react-router-dom'
 
 class BooksApp extends React.Component {
-  removeBook = (target,book) => {
-    this.setState((currentState) => ({
-      [target]:{
-        ...currentState[target],
-        books: currentState[target].books.filter(function(b){
-          return book !== b
-        }
-    )}}))
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      allbooks:[],
+      currentlyReading: {
+        title:"Currently Reading",
+        books: []
+      },
+      wantToRead:{
+        title:"Want to Read",
+        books: []
+      },
+      read:{
+        title:"Read",
+        books: []
+      },
+      page: '/',
+      query: ''
+    };
   }
 
   updateQuery = (evt) => {
-      if (evt.key === 'Enter') {
-        BooksAPI.search(this.state.query)
-          .then((books) => {
+     const query = evt.target.value
+    if (query.length > 0) {
+      BooksAPI.search(query)
+        .then((books) => {
+          if (books === undefined || books.error) {
             this.setState(() => ({
-            allbooks:books
-          }))
-        })
-      }
-
+              allbooks:[]
+            }))
+          } else {
+            this.setState(() => ({
+              allbooks:books
+            }))
+        }
+      })
+    } else {
+      this.setState(() => ({
+        allbooks:[]
+      }))
     }
-
-  addBook = (target,book) => {
-    console.log("target:",target)
-    console.log("book:",book)
-
-    if (target != 'none'){
-      this.setState((currentState) => ({
-        [target]:{
-          ...currentState[target],
-          books: currentState[target].books.concat([book])
-      }}))
-    }
-   switch(target){
-
-      case 'currentlyReading':
-        this.removeBook('wantToRead',book)
-        this.removeBook('read',book)
-        return
-      case 'wantToRead':
-        this.removeBook('read',book)
-        this.removeBook('currentlyReading',book)
-        return
-      case 'read':
-        this.removeBook('currentlyReading',book)
-        this.removeBook('wantToRead',book)
-        return
-      case 'none':
-        this.removeBook('read',book)
-        this.removeBook('wantToRead',book)
-        this.removeBook('currentlyReading',book)
-        return
-    }
-
-
   }
 
-  state = {
-    allbooks:[],
-    currentlyReading: {
-      title:"Currently Reading",
-      books: []
-    },
-    wantToRead:{
-      title:"Want to Read",
-      books: []
-    },
-    read:{
-      title:"Read",
-      books: []
-    },
-    page: '/',
-    query: ''
+  addBook = (target, book) => {
+    let oldShelf = book.shelf
+    if (target === oldShelf) {
+      return
+    }
+    BooksAPI.update(book, target)
+      .then((response) => {
+        book.shelf=target
+        this.setState((currentState) => ({
+          [target]:{
+            ...currentState[target],
+            books: currentState[target].books.concat([book])
+          }
+
+        }))
+        if (oldShelf !== undefined) {
+            this.setState((currentState) => ({
+          [oldShelf]:{
+            ...currentState[oldShelf],
+            books: currentState[oldShelf].books.filter(item => item.id !== book.id)
+          }
+        }))
+        }
+      })
   }
+
+
   componentDidMount() {
     BooksAPI.getAll()
       .then((books) => {
+        books.forEach(book => {
+          this.setState((currentState) => ({
+            [book.shelf]:{
+              ...currentState[book.shelf],
+              books: currentState[book.shelf].books.concat([book])
+            }
+         }))
+
+        })
         this.setState(() => ({
-        allbooks:books
-      }))
+          allbooks:[]
+        }))
     })
   }
   render() {
+    let content
+    if (this.state.allbooks.length > 0) {
+      content = this.state.allbooks.map((item, index) => (
+         <li key={item.id}>
+           <Books
+              book={item} addBook={this.addBook}
+            />
+         </li>
+      ))
+    } else {
+      content = (<h1> No results </h1>)
+    }
     return (
+
       <div className="app">
         <Route exact path='/search' render={({history}) => (
           <div className="search-books">
             <div className="search-books-bar">
               <a className="close-search" onClick={() => history.push('/')}>Close</a>
               <div className="search-books-input-wrapper">
-                <input type="text" placeholder="Search by title or author" onChange={event => {this.setState({query: event.target.value})}} onKeyPress={this.updateQuery}/>
-
+                <input type="text" placeholder="Search by title or author" onChange={event => {this.updateQuery(event)}}/>
               </div>
             </div>
             <div className="search-books-results">
               <ol className="books-grid">
-                {console.log(this.state.allbooks)}
-                {
-                 this.state.allbooks.map((item, index) => (
-                   <li>
-                     <Books
-                        book={item} addBook={this.addBook}
-                      />
-                   </li>
-                ))}
+                {content}
               </ol>
 
           </div>
