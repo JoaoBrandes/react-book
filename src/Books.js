@@ -17,10 +17,10 @@ class Books extends Component {
         <div className="book-shelf-changer">
           <select value={book.shelf === undefined ? "none" : book.shelf} onChange={(event) => addBook(event.target.value,book)}>
             <option value="move" disabled>Move to...</option>
-            <option value="currentlyReading">Currently Reading</option>
+            <option value="currentlyReading" checked>Currently Reading</option>
             <option value="wantToRead">Want to Read</option>
             <option value="read">Read</option>
-            <option value="none" disabled>None</option>
+            <option value="none">None</option>
           </select>
         </div>
       </div>
